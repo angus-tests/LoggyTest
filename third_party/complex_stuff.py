@@ -11,5 +11,5 @@ def complex_add(num1: int, num2: int) -> int:
     :param num2: The second number.
     :return: The sum of the two numbers.
     """
-    logger.debug("Adding some numbers from inside the third party library")
+    logger.info("Adding some numbers from inside the third party library")
     return num1 + num2

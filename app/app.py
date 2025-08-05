@@ -19,27 +19,7 @@ async def lifespan(_app: FastAPI):
     # Get the third-party logger
     complex_logger = logging.getLogger("complex_stuff")
 
-    # Clear any existing handlers added by the third-party module
-    complex_logger.handlers.clear()
-
-    # Set level
-    complex_logger.setLevel(logging.DEBUG)
-
-    # Attach your custom handler
-    complex_handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    complex_handler.setFormatter(formatter)
-
-    # Add new handler
-    complex_logger.addHandler(complex_handler)
-
-    # Prevent logs from propagating to the root logger
-    complex_logger.propagate = False
-
-    # Attach the complex logger to Loggy
-    Loggy.attach(complex_logger)
+    Loggy.hijack(complex_logger)
 
     yield  # Run the application
 

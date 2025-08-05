@@ -75,7 +75,7 @@ class Loggy:
         cls.get_logger(name).exception(msg, extra=cls._merge_context(extra))
 
     @classmethod
-    def attach(cls, logger: logging.Logger):
+    def _attach(cls, logger: logging.Logger):
         """
         Attach a context-injecting filter to any standard logger.
         Allows the logger to automatically include the global context in any custom or 3rd party logger.
@@ -84,6 +84,31 @@ class Loggy:
         # TODO what happens when global context changes after attachment?
         filter_instance = LoggyContextFilter(lambda: cls._global_context.copy())
         logger.addFilter(filter_instance)
+
+    @classmethod
+    def hijack(cls, logger: logging.Logger, level: int = logging.DEBUG):
+        """
+        Hijack a logger to use Loggy's context and handlers.
+        This allows you to take control of an existing logger and apply Loggy's context and handlers.
+        """
+        if not isinstance(logger, logging.Logger):
+            raise ValueError("logger must be an instance of logging.Logger")
+
+        # Clear any existing handlers added by the third-party module
+        logger.handlers.clear()
+
+        # Set level
+        logger.setLevel(level) # TODO make distinction between log level and handler level
+
+        # Attach custom handlers
+        for handler in cls._handlers:
+            logger.addHandler(handler)
+
+        # Prevent logs from propagating to the root logger
+        logger.propagate = False
+
+        # Attach the complex logger to Loggy
+        cls._attach(logger)
 
     @classmethod
     def configure(
