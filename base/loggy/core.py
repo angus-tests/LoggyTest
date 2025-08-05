@@ -3,6 +3,7 @@ from logging import StreamHandler
 from typing import Any, Optional
 
 from base.loggy.formatters import JsonFormatter
+from base.loggy.support import LoggyContextFilter
 
 
 class Loggy:
@@ -72,6 +73,17 @@ class Loggy:
     @classmethod
     def exception(cls, name: str, msg: str, extra: Optional[dict[str, Any]] = None):
         cls.get_logger(name).exception(msg, extra=cls._merge_context(extra))
+
+    @classmethod
+    def attach(cls, logger: logging.Logger):
+        """
+        Attach a context-injecting filter to any standard logger.
+        Allows the logger to automatically include the global context in any custom or 3rd party logger.
+        """
+
+        # TODO what happens when global context changes after attachment?
+        filter_instance = LoggyContextFilter(lambda: cls._global_context.copy())
+        logger.addFilter(filter_instance)
 
     @classmethod
     def configure(
