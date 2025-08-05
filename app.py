@@ -5,22 +5,19 @@ from loggy import Loggy
 
 if __name__ == "__main__":
 
-	Loggy.add_global_handler(
-		logging.StreamHandler()
-	)
+	# Add formatter and handler
+	formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+	handler = logging.StreamHandler()
 
-	Loggy.add_global_formatter(
-		logging.Formatter(
-			"%(asctime)s - %(levelname)s - %(message)s - [%(request_id)s] [%(user_id)s]"
-		)
-	)
+	Loggy.add_formatter(formatter)
+	Loggy.add_handler(handler)
 
-	log = Loggy.get_logger(__name__)
-
-	# Set context (thread-local)
+	# Set global context
 	Loggy.set_context(request_id="abc123", user_id="42")
 
-	log.info("Something happened")
+	# Get a logger and log something
+	log = Loggy.get_logger("my_app")
 
-	# Clear context (optional, context is thread-local)
-	Loggy.clear_context()
+	log.info("Started the process")
+	log.warning("Something might go wrong")
+	log.error("Something went wrong")
