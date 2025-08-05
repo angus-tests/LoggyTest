@@ -1,45 +1,60 @@
 import logging
 import threading
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
-class ContextFilter(logging.Filter):
+class LoggyLogger(logging.Logger):
     """
-    Logging filter that injects thread-local context into log records.
+    Custom Logger that injects thread-local context into each log record.
     """
-    def __init__(self, context_storage: threading.local):
-        super().__init__()
-        self._context_storage = context_storage
+    _context_storage = threading.local()
 
-    def filter(self, record: logging.LogRecord) -> bool:
+    def makeRecord(
+        self,
+        name,
+        level,
+        fn,
+        lno,
+        msg,
+        args,
+        exc_info,
+        func=None,
+        extra=None,
+        sinfo=None
+    ):
+        # Create the standard LogRecord
+        record = super().makeRecord(name, level, fn, lno, msg, args, exc_info, func, extra, sinfo)
+
+        # Inject thread-local context into the record
         context = getattr(self._context_storage, "context", {})
         for key, value in context.items():
             setattr(record, key, value)
-        return True
-
-
-class Loggy:
-    _lock = threading.Lock()
-    _loggers: Dict[str, logging.Logger] = {}
-    _context_storage = threading.local()
-    _global_handlers: list[logging.Handler] = []
-    _global_formatters: list[logging.Formatter] = []
+        return record
 
     @classmethod
     def set_context(cls, **kwargs: Any):
-        """
-        Set thread-local context to be injected into log records.
-        """
         if not hasattr(cls._context_storage, "context"):
             cls._context_storage.context = {}
         cls._context_storage.context.update(kwargs)
 
     @classmethod
     def clear_context(cls):
-        """
-        Clear thread-local context.
-        """
         cls._context_storage.context = {}
+
+
+class Loggy:
+    _lock = threading.Lock()
+    _loggers: Dict[str, LoggyLogger] = {}
+    _global_handlers: list[logging.Handler] = []
+    _global_formatters: list[logging.Formatter] = []
+
+    @classmethod
+    def set_context(cls, **kwargs: Any):
+        LoggyLogger.set_context(**kwargs)
+
+    @classmethod
+    def clear_context(cls):
+        LoggyLogger.clear_context()
 
     @classmethod
     def add_global_handler(cls, handler: logging.Handler):
@@ -52,28 +67,23 @@ class Loggy:
             cls._global_formatters.append(formatter)
 
     @classmethod
-    def get_logger(cls, name: str) -> logging.Logger:
-        """
-        Get a thread-safe logger instance with context support.
-        """
+    def get_logger(cls, name: str) -> LoggyLogger:
         with cls._lock:
             if name in cls._loggers:
                 return cls._loggers[name]
 
+            # Use our custom logger class
+            logging.setLoggerClass(LoggyLogger)
             logger = logging.getLogger(name)
             logger.setLevel(logging.DEBUG)
 
-            # Add handlers and formatters
+            # Attach new handlers with formatters
             for handler in cls._global_handlers:
-                # Clone handler so each logger gets its own copy
-                new_handler = type(handler)()
-                new_handler.setLevel(handler.level)
+                h = type(handler)()
+                h.setLevel(handler.level)
                 for fmt in cls._global_formatters:
-                    new_handler.setFormatter(fmt)
-                logger.addHandler(new_handler)
-
-            # Add context filter
-            logger.addFilter(ContextFilter(cls._context_storage))
+                    h.setFormatter(fmt)
+                logger.addHandler(h)
 
             cls._loggers[name] = logger
             return logger
