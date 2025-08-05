@@ -1,7 +1,8 @@
 import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from base.loggy import Loggy
+
+from base.loggy.core import Loggy
 
 
 @asynccontextmanager
