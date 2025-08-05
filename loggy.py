@@ -1,13 +1,31 @@
 import logging
-from typing import Any, Dict
+import json
+from typing import Any, Dict, Optional
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+
+        # Include full extra context under "context" if present
+        context = getattr(record, "context", None)
+        if context:
+            log_record["context"] = context
+
+        return json.dumps(log_record)
 
 
 class Loggy:
     _loggers: Dict[str, logging.Logger] = {}
     _global_context: Dict[str, Any] = {}
-    _global_handlers: list[logging.Handler] = []
-    _global_formatters: list[logging.Formatter] = []
+    _handlers: list[logging.Handler] = []
 
+    # TODO keep as kwargs or use dictionary?
     @classmethod
     def set_context(cls, **kwargs: Any):
         cls._global_context.update(kwargs)
@@ -18,11 +36,7 @@ class Loggy:
 
     @classmethod
     def add_handler(cls, handler: logging.Handler):
-        cls._global_handlers.append(handler)
-
-    @classmethod
-    def add_formatter(cls, formatter: logging.Formatter):
-        cls._global_formatters.append(formatter)
+        cls._handlers.append(handler)
 
     @classmethod
     def get_logger(cls, name: str) -> logging.Logger:
@@ -32,33 +46,39 @@ class Loggy:
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
 
-        # Add handlers with formatters
-        for handler in cls._global_handlers:
-            # Clone a new handler instance (assumes stateless handlers like StreamHandler)
-            new_handler = type(handler)()
-            new_handler.setLevel(handler.level)
-
-            for fmt in cls._global_formatters:
-                new_handler.setFormatter(fmt)
-
-            logger.addHandler(new_handler)
-
-        # Wrap the logger’s methods to inject context
-        cls._wrap_logger_methods(logger)
+        for handler in cls._handlers:
+            logger.addHandler(handler)
 
         cls._loggers[name] = logger
         return logger
 
     @classmethod
-    def _wrap_logger_methods(cls, logger: logging.Logger):
-        for method_name in ['debug', 'info', 'warning', 'error', 'critical', 'exception']:
-            original = getattr(logger, method_name)
+    def _merge_context(cls, extra: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        merged = cls._global_context.copy()
+        if extra:
+            merged.update(extra)
+        return {"context": merged}
 
-            def wrapper(msg, *args, _original=original, **kwargs):
-                context_str = " ".join(
-                    f"[{key}={value}]" for key, value in cls._global_context.items()
-                )
-                full_msg = f"{context_str} {msg}" if context_str else msg
-                return _original(full_msg, *args, **kwargs)
+    @classmethod
+    def debug(cls, name: str, msg: str, extra: Optional[Dict[str, Any]] = None):
+        cls.get_logger(name).debug(msg, extra=cls._merge_context(extra))
 
-            setattr(logger, method_name, wrapper)
+    @classmethod
+    def info(cls, name: str, msg: str, extra: Optional[Dict[str, Any]] = None):
+        cls.get_logger(name).info(msg, extra=cls._merge_context(extra))
+
+    @classmethod
+    def warning(cls, name: str, msg: str, extra: Optional[Dict[str, Any]] = None):
+        cls.get_logger(name).warning(msg, extra=cls._merge_context(extra))
+
+    @classmethod
+    def error(cls, name: str, msg: str, extra: Optional[Dict[str, Any]] = None):
+        cls.get_logger(name).error(msg, extra=cls._merge_context(extra))
+
+    @classmethod
+    def critical(cls, name: str, msg: str, extra: Optional[Dict[str, Any]] = None):
+        cls.get_logger(name).critical(msg, extra=cls._merge_context(extra))
+
+    @classmethod
+    def exception(cls, name: str, msg: str, extra: Optional[Dict[str, Any]] = None):
+        cls.get_logger(name).exception(msg, extra=cls._merge_context(extra))
