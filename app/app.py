@@ -24,6 +24,9 @@ async def lifespan(_app: FastAPI):
         formatter=JsonFormatter(),
     )
 
+    # Optionally add more global context
+    Loggy.add_context(tx_id="12345")
+
     # Get the third-party logger
     complex_logger = logging.getLogger("complex_stuff")
 

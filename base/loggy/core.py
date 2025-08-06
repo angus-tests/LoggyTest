@@ -13,7 +13,7 @@ class Loggy:
 
     # TODO keep as kwargs or use dictionary?
     @classmethod
-    def set_context(cls, **kwargs: Any):
+    def add_context(cls, **kwargs: Any):
         cls._global_context.update(kwargs)
 
     @classmethod
@@ -132,7 +132,7 @@ class Loggy:
         cls._global_context.clear()
 
         if context:
-            cls.set_context(**context)
+            cls.add_context(**context)
 
         formatter = formatter or JsonFormatter()
 
