@@ -13,27 +13,27 @@ from third_party.complex_stuff import complex_add
 async def lifespan(_app: FastAPI):
 
     # Setup logging during startup
-    # Loggy.configure(
-    #     context={"app": "LoggyTest", "version": "1.0"},
-    #     formatter=logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s - context=%(context)s')
-    # )
-
-    # Setup logging during startup
     Loggy.configure(
         context={"app": "LoggyTest", "version": "1.0"},
-        formatter=JsonFormatter(),
+        formatter=logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s - context=%(context)s')
     )
+
+    # Setup logging during startup
+    # Loggy.configure(
+    #     context={"app": "LoggyTest", "version": "1.0"},
+    #     formatter=JsonFormatter(),
+    # )
 
     # Optionally add more global context
     Loggy.add_context(tx_id="12345")
 
     # Get the third-party logger
     complex_logger = logging.getLogger("complex_stuff")
-
-    #uvicorn_access_logger = logging.getLogger("uvicorn.access")
-
     Loggy.hijack(complex_logger)
-    #Loggy.hijack(uvicorn_access_logger)
+
+    # Hijack the Uvicorn logger
+    uvicorn_access_logger = logging.getLogger("uvicorn.access")
+    Loggy.hijack(uvicorn_access_logger)
 
     yield  # Run the application
 
