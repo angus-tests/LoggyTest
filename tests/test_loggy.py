@@ -1,6 +1,8 @@
+import time
 
 from base.loggy.core import Loggy, JsonFormatter
 from base.loggy.handlers import InMemoryLogHandler
+import threading
 
 
 # Setup test logging
@@ -50,4 +52,25 @@ def test_error_log_with_global_context_no_extra():
     assert log_entry["context"]["env"] == "test"
 
 
+def test_concurrent_logging():
+
+    handler = setup_test_loggy(context={"env": "test"})
+
+    def run(tx_id: str, n: int):
+        Loggy.add_context(tx_id=tx_id)
+        Loggy.info("test_logger", f"First Message from {n}")
+        time.sleep(2)
+        Loggy.clear_context()
+
+    t1 = threading.Thread(target=run, args=("123", 1))
+    t1.start()
+    run("456", 2)
+    t1.join()
+    logs = handler.get_json_logs()
+
+    l1 = logs[0]
+    l2 = logs[1]
+
+    assert l1["context"]["tx_id"] == "123"
+    assert l2["context"]["tx_id"] == "456"
 
