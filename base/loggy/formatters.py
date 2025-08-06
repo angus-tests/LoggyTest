@@ -11,7 +11,7 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        # Include full extra context under "context" if present
+        # Take the context from the record object and add it to the log record
         context = getattr(record, "context", None)
         if context:
             log_record["context"] = context
